@@ -45,66 +45,176 @@ DEX-TRAIN:
 FREIHAND-MOCAP:
     DATASET_FILE: hamer_training_data/freihand_mocap.npz
 
+ARCTIC-VAL:
+    TYPE: ImageDataset
+    DATASET_FILE: /is/cluster/fast/yye/data/arctic/hamer_format/v1_val.data.pyd
+    img_dir: /is/cluster/shared/datasets/ps/arctic/v1_0/data/images_zips
+ARCTICVID-VAL:
+    TYPE: VideoDataset
+    DATASET_FILE: /is/cluster/fast/yye/data/arctic/hamer_format/v1_val.data.pyd
+    img_dir: /is/cluster/shared/datasets/ps/arctic/v1_0/data/images_zips    
+
 
 ARCTICEGO-CLIP-TRAIN:    
     TYPE: ClipDataset
-    DATASET_FILE: haptic_training_data/arctic/clip/arctic_train-ego_clip.data.pyd
+    DATASET_FILE: /is/cluster/fast/yye/data/arctic/clip/arctic_train-ego_clip.data.pyd
     img_dir: /is/cluster/shared/datasets/ps/arctic/v1_0/data/images_zips
-    label_dir: haptic_training_data/arctic/clip/
+    label_dir: /is/cluster/fast/yye/data/arctic/clip/
 ARCTICEGO-CLIP-VAL:
     TYPE: ClipDataset
-    DATASET_FILE: haptic_training_data/arctic/clip/arctic_val-ego_clip.data.pyd
+    DATASET_FILE: /is/cluster/fast/yye/data/arctic/clip/arctic_val-ego_clip.data.pyd
     img_dir: /is/cluster/shared/datasets/ps/arctic/v1_0/data/images_zips
-    label_dir: haptic_training_data/arctic/clip/
+    label_dir: /is/cluster/fast/yye/data/arctic/clip/
 
 ARCTICEXO-CLIP-TRAIN:    
     TYPE: ClipDataset
-    DATASET_FILE: haptic_training_data/arctic/clip/arctic_train-exo_clip.data.pyd
+    DATASET_FILE: /is/cluster/fast/yye/data/arctic/clip/arctic_train-exo_clip.data.pyd
     img_dir: /is/cluster/shared/datasets/ps/arctic/v1_0/data/images_zips
-    label_dir: haptic_training_data/arctic/clip/
-
+    label_dir: /is/cluster/fast/yye/data/arctic/clip/
 
 ARCTICEXO-CLIP-VAL:
     TYPE: ClipDataset
-    DATASET_FILE: haptic_training_data/arctic/clip/arctic_val-exo_clip.data.pyd
+    DATASET_FILE: /is/cluster/fast/yye/data/arctic/clip/arctic_val-exo_clip.data.pyd
     img_dir: /is/cluster/shared/datasets/ps/arctic/v1_0/data/images_zips
-    label_dir: haptic_training_data/arctic/clip/
-
-# DEXYCB-VAL:
-#     TYPE: SeqDataset
-#     DATASET_FILE: haptic_training_data/dexycb/s0_val.data.pyd
-#     img_dir: /ps/project/datasets/DexYCB/
+    label_dir: /is/cluster/fast/yye/data/arctic/clip/
 
 DEXYCB-CLIP-VAL:
     TYPE: ClipDataset
-    DATASET_FILE: haptic_training_data/dexycb/clip/dexycb_val_clip.data.pyd
-    img_dir: haptic_training_data/dexycb/raw
-    label_dir: haptic_training_data/dexycb/clip/
-
+    DATASET_FILE: /is/cluster/fast/yye/data/dexycb/clip/dexycb_val_clip.data.pyd
+    img_dir: /is/cluster/fast/yye/data/dexycb/raw
+    label_dir: /is/cluster/fast/yye/data/dexycb/clip/
 
 DEXYCB-TRAIN:
     TYPE: ClipDataset
-    DATASET_FILE: haptic_training_data/dexycb/clip/dexycb_train_clip.data.pyd
-    img_dir: haptic_training_data/dexycb/raw
-    label_dir: haptic_training_data/dexycb/clip/
+    DATASET_FILE: /is/cluster/fast/yye/data/dexycb/clip/dexycb_train_clip.data.pyd
+    img_dir: /is/cluster/fast/yye/data/dexycb/raw
+    label_dir: /is/cluster/fast/yye/data/dexycb/clip/
     
-
 HO3D-CLIP-TRAIN:
     TYPE: ClipDataset
-    DATASET_FILE: haptic_training_data/ho3d/clip/ho3d_train_clip.data.pyd
-    img_dir: haptic_training_data/ho3d/HO3D_v3/
-    label_dir: haptic_training_data/ho3d/clip/
-
+    DATASET_FILE: /is/cluster/fast/yye/data/ho3d/clip/ho3d_train_clip.data.pyd
+    img_dir: /is/cluster/fast/yye/data/ho3d/HO3D_v3/
+    label_dir: /is/cluster/fast/yye/data/ho3d/clip/
 
 H2O-CLIP-TRAIN:
     TYPE: ClipDataset
-    DATASET_FILE: haptic_training_data/ho2o/clip/ho2o_train_clip.data.pyd
-    img_dir: haptic_training_data/ho2o/raw/
-    label_dir: haptic_training_data/ho2o/clip/
-
+    DATASET_FILE: /is/cluster/fast/yye/data/ho2o/clip/ho2o_train_clip.data.pyd
+    img_dir: /is/cluster/fast/yye/data/ho2o/raw/
+    label_dir: /is/cluster/fast/yye/data/ho2o/clip/
 
 INTERHAND26M-CLIP-TRAIN:
     TYPE: ClipDataset
-    DATASET_FILE: haptic_training_data/interhand/clip/interhand_train_clip.data.pyd
-    img_dir: haptic_training_data/interhand/raw/InterHand2.6M_30fps_batch1/images
-    label_dir: haptic_training_data/interhand/clip/
+    DATASET_FILE: /is/cluster/fast/yye/data/interhand/clip/interhand_train_clip.data.pyd
+    img_dir: /is/cluster/fast/yye/data/interhand/raw/InterHand2.6M_30fps_batch1/images
+    label_dir: /is/cluster/fast/yye/data/interhand/clip/
+
+# ARCTIC-TRAIN:
+#     TYPE: ImageDataset
+#     URLS: hamer_training_data/arctic-train/{000000..000020}.tar
+#     epoch_size: 20_000
+# FREIHAND-TRAIN:
+#     TYPE: ImageDataset
+#     URLS: hamer_training_data/dataset_tars/freihand-train/{000000..000130}.tar
+#     epoch_size: 130_240
+# INTERHAND26M-TRAIN:
+#     TYPE: ImageDataset
+#     URLS: hamer_training_data/dataset_tars/interhand26m-train/{000000..001056}.tar
+#     epoch_size: 1_424_632
+# HALPE-TRAIN:
+#     TYPE: ImageDataset
+#     URLS: hamer_training_data/dataset_tars/halpe-train/{000000..000022}.tar
+#     epoch_size: 34_289
+# COCOW-TRAIN:
+#     TYPE: ImageDataset
+#     URLS: hamer_training_data/dataset_tars/cocow-train/{000000..000036}.tar
+#     epoch_size: 78_666
+# MTC-TRAIN:
+#     TYPE: ImageDataset
+#     URLS: hamer_training_data/dataset_tars/mtc-train/{000000..000306}.tar
+#     epoch_size: 363_947
+# RHD-TRAIN:
+#     TYPE: ImageDataset
+#     URLS: hamer_training_data/dataset_tars/rhd-train/{000000..000041}.tar
+#     epoch_size: 61_705
+# MPIINZSL-TRAIN:
+#     TYPE: ImageDataset
+#     URLS: hamer_training_data/dataset_tars/mpiinzsl-train/{000000..000015}.tar
+#     epoch_size: 15_184
+# HO3D-TRAIN:
+#     TYPE: ImageDataset
+#     URLS: hamer_training_data/dataset_tars/ho3d-train/{000000..000083}.tar
+#     epoch_size: 83_325
+# H2O3D-TRAIN:
+#     TYPE: ImageDataset
+#     URLS: hamer_training_data/dataset_tars/h2o3d-train/{000000..000060}.tar
+#     epoch_size: 121_996
+# DEX-TRAIN:
+#     TYPE: ImageDataset
+#     URLS: hamer_training_data/dataset_tars/dex-train/{000000..000406}.tar
+#     epoch_size: 406_888
+# FREIHAND-MOCAP:
+#     DATASET_FILE: hamer_training_data/freihand_mocap.npz
+
+
+# ARCTICEGO-CLIP-TRAIN:    
+#     TYPE: ClipDataset
+#     DATASET_FILE: haptic_training_data/arctic/clip/arctic_train-ego_clip.data.pyd
+#     img_dir: /is/cluster/shared/datasets/ps/arctic/v1_0/data/images_zips
+#     label_dir: haptic_training_data/arctic/clip/
+# ARCTICEGO-CLIP-VAL:
+#     TYPE: ClipDataset
+#     DATASET_FILE: haptic_training_data/arctic/clip/arctic_val-ego_clip.data.pyd
+#     img_dir: /is/cluster/shared/datasets/ps/arctic/v1_0/data/images_zips
+#     label_dir: haptic_training_data/arctic/clip/
+
+# ARCTICEXO-CLIP-TRAIN:    
+#     TYPE: ClipDataset
+#     DATASET_FILE: haptic_training_data/arctic/clip/arctic_train-exo_clip.data.pyd
+#     img_dir: /is/cluster/shared/datasets/ps/arctic/v1_0/data/images_zips
+#     label_dir: haptic_training_data/arctic/clip/
+
+
+# ARCTICEXO-CLIP-VAL:
+#     TYPE: ClipDataset
+#     DATASET_FILE: haptic_training_data/arctic/clip/arctic_val-exo_clip.data.pyd
+#     img_dir: /is/cluster/shared/datasets/ps/arctic/v1_0/data/images_zips
+#     label_dir: haptic_training_data/arctic/clip/
+
+# # DEXYCB-VAL:
+# #     TYPE: SeqDataset
+# #     DATASET_FILE: haptic_training_data/dexycb/s0_val.data.pyd
+# #     img_dir: /ps/project/datasets/DexYCB/
+
+# DEXYCB-CLIP-VAL:
+#     TYPE: ClipDataset
+#     DATASET_FILE: haptic_training_data/dexycb/clip/dexycb_val_clip.data.pyd
+#     img_dir: haptic_training_data/dexycb/raw
+#     label_dir: haptic_training_data/dexycb/clip/
+
+
+# DEXYCB-TRAIN:
+#     TYPE: ClipDataset
+#     DATASET_FILE: haptic_training_data/dexycb/clip/dexycb_train_clip.data.pyd
+#     img_dir: haptic_training_data/dexycb/raw
+#     label_dir: haptic_training_data/dexycb/clip/
+    
+
+# HO3D-CLIP-TRAIN:
+#     TYPE: ClipDataset
+#     DATASET_FILE: haptic_training_data/ho3d/clip/ho3d_train_clip.data.pyd
+#     img_dir: haptic_training_data/ho3d/HO3D_v3/
+#     label_dir: haptic_training_data/ho3d/clip/
+
+
+# H2O-CLIP-TRAIN:
+#     TYPE: ClipDataset
+#     DATASET_FILE: haptic_training_data/ho2o/clip/ho2o_train_clip.data.pyd
+#     img_dir: haptic_training_data/ho2o/raw/
+#     label_dir: haptic_training_data/ho2o/clip/
+
+
+# INTERHAND26M-CLIP-TRAIN:
+#     TYPE: ClipDataset
+#     DATASET_FILE: haptic_training_data/interhand/clip/interhand_train_clip.data.pyd
+#     img_dir: haptic_training_data/interhand/raw/InterHand2.6M_30fps_batch1/images
+#     label_dir: haptic_training_data/interhand/clip/

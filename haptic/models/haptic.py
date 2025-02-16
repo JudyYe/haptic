@@ -8,17 +8,17 @@ import wandb
 from einops import rearrange
 from yacs.config import CfgNode
 
-from jutils import image_utils
-from jutils.visualizer import Visualizer
+from nnutils import image_utils
+from nnutils.visualizer import Visualizer
 
 from ..utils import MeshRenderer, SkeletonRenderer
 from ..utils.geometry import aa_to_rotmat, perspective_projection
 from ..utils.pylogger import get_pylogger
-from . import MANO
 from .backbones import create_backbone
 from .discriminator import Discriminator
 from .heads import build_mano_head
 from .losses import Keypoint2DLoss, Keypoint3DLoss, ParameterLoss
+from .mano_wrapper import MANO
 
 log = get_pylogger(__name__)
 
@@ -271,7 +271,8 @@ class HAPTIC(pl.LightningModule):
 
     @pl.utilities.rank_zero.rank_zero_only
     def wandb_logging(self, batch: Dict, output: Dict, step_count: int, train: bool = True, write_to_summary_writer: bool = True, fname=None, pref=None) -> None:
-        super().wandb_logging(batch, output, step_count, train, write_to_summary_writer, fname, pref)
+        self.wandb_logging_one_frame(batch, output, step_count, train, write_to_summary_writer, fname)
+        
         mode = 'train' if train else 'val'
         if pref is not None:
             mode = pref
@@ -316,10 +317,8 @@ class HAPTIC(pl.LightningModule):
         images = images * torch.tensor([0.229, 0.224, 0.225], device=images.device).reshape(1,3,1,1)
         images = images + torch.tensor([0.485, 0.456, 0.406], device=images.device).reshape(1,3,1,1)
         
-        pred_keypoints_3d = output['pred_keypoints_3d'].detach().reshape(batch_size, -1, 3)
         pred_vertices = output['pred_vertices'].detach().reshape(batch_size, -1, 3)
         focal_length = output['focal_length'].detach().reshape(batch_size, 2)
-        gt_keypoints_3d = batch['keypoints_3d']
         gt_keypoints_2d = batch['keypoints_2d']
         losses = output['losses']
         pred_cam_t = output['pred_cam_t'].detach().reshape(batch_size, 3)

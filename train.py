@@ -1,5 +1,4 @@
 import os
-import os.path as osp
 import signal
 from typing import Optional
 
@@ -14,17 +13,15 @@ from haptic.configs import dataset_config
 from haptic.datasets import HAPTICDataModule
 from haptic.utils.misc import log_hyperparameters, task_wrapper
 from haptic.utils.pylogger import get_pylogger
-from jutils import model_utils
-from jutils.logger import LoggerCallback, build_logger
+from nnutils import model_utils
+from nnutils.logger import LoggerCallback, build_logger
 
 signal.signal(signal.SIGUSR1, signal.SIG_DFL)
 log = get_pylogger(__name__)
 
 
-@hydra.main(
-    version_base=None, config_path=str("haptic/configs_hydra"), config_name="finetune"
-)
-@task_wrapper
+@hydra.main("haptic/configs_hydra", "train", version_base=None)
+# @task_wrapper
 def main(cfg: DictConfig) -> Optional[float]:
     # Load dataset config
     dataset_cfg = dataset_config()

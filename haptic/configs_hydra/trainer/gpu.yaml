@@ -1,0 +1,9 @@
+defaults:
+  - default.yaml
+  - default_hamer.yaml
+
+# strategy: dp # ddp
+accelerator: gpu
+devices: 1
+
+deterministic: True

@@ -26,6 +26,7 @@ log: wandb
 
 
 webdata: False
+tags: ["dev"]
 
 # set False to skip model training
 train: True

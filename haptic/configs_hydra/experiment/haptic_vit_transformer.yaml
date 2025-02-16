@@ -32,7 +32,7 @@ MODEL:
   BG_BACKBONE:
     TYPE: dinov2_vitg14_reg  # DINO 
   attn_mode: both
-  TARGET: HAPITC
+  TARGET: HAPTIC
   NUM_FRAMES: 8
   IMAGE_SIZE: 256
   IMAGE_MEAN: [0.485, 0.456, 0.406]

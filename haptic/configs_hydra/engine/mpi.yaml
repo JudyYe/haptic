@@ -1,0 +1,12 @@
+folder: ${exp_dir}/submitit
+name: ${expname}
+
+ngpu: 1
+gmem: 80
+mem: 100
+time_min: 2400 # 40hrs 
+cuda: "7.5"
+bid: 30
+ncpu: 10 # per gpu
+
+exclude: i108 # +i104+g095+g093
