@@ -1,0 +1,41 @@
+# @package _global_
+
+# specify here default configuration
+# order of defaults determines the order in which configs override each other
+defaults:
+  - _self_
+  - data: vid_all.yaml
+  - trainer: gpu.yaml
+  - paths: default.yaml
+  - extras: default.yaml
+  # optional: specify hydra path
+  - hydra: judy.yaml
+
+  # experiment configs allow for version control of specific hyperparameters
+  # e.g. best hyperparameters for given model and datamodule
+  - experiment: haptic_vit_transformer
+
+  # debugging config (enable through command line, e.g. `python train.py debug=default)
+  - debug: null
+
+# task name, determines output directory path
+task_name: ${expname}
+expname: ft
+exp_dir: ${paths.log_dir}/${expname}
+log: wandb
+
+
+webdata: False
+
+# set False to skip model training
+train: True
+
+# evaluate on test set, using best model weights achieved during training
+# lightning chooses best weights based on the metric specified in checkpoint callback
+test: False
+
+# simply provide checkpoint path to resume training
+ckpt_path: '_DATA/hamer_ckpts/checkpoints/hamer.ckpt'
+
+# seed for random number generators in pytorch, numpy and python.random
+seed: null

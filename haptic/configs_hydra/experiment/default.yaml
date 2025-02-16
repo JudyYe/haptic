@@ -1,0 +1,54 @@
+# @package _global_
+
+MANO:
+  DATA_DIR: _DATA/data/
+  MODEL_PATH: ${MANO.DATA_DIR}/mano
+  GENDER: neutral
+  NUM_HAND_JOINTS: 15
+  MEAN_PARAMS: ${MANO.DATA_DIR}/mano_mean_params.npz
+  CREATE_BODY_POSE: FALSE
+
+EXTRA:
+  FOCAL_LENGTH: 5000  # ~ 2409 / 2800 ~ 221/256. original: 5000
+  NUM_LOG_IMAGES: 4
+  NUM_LOG_SAMPLES_PER_IMAGE: 8
+  PELVIS_IND: 0
+
+DATASETS:
+  BETAS_REG: True
+  CONFIG:
+    SCALE_FACTOR: 0.3
+    ROT_FACTOR: 30
+    TRANS_FACTOR: 0.02
+    COLOR_SCALE: 0.2
+    ROT_AUG_RATE: 0.6
+    TRANS_AUG_RATE: 0.5
+    DO_FLIP: False
+    FLIP_AUG_RATE: 0.0
+    EXTREME_CROP_AUG_RATE: 0.0
+    EXTREME_CROP_AUG_LEVEL: 1
+    AUG_DT: 5  # dt=1-5
+    AUG_DT_RATE: 0.5
+
+    IID_AUG: 2  # same rotation, but others are different, eg scale and translation
+    
+    # 0: same aug
+    # 1: iid aug
+    # 2: different aug
+
+  BG_CONFIG:
+    SCALE_FACTOR: 0.3
+    ROT_FACTOR: 30
+    TRANS_FACTOR: 0.02
+
+    COLOR_SCALE: 0.2
+    ROT_AUG_RATE: 0.1
+    TRANS_AUG_RATE: 0.5
+    DO_FLIP: False
+    FLIP_AUG_RATE: 0.0
+    EXTREME_CROP_AUG_RATE: 0.0
+    EXTREME_CROP_AUG_LEVEL: 1
+
+    AUG_RATE: 0.5
+    IID_AUG: 0 #OR 2?  # APPLY THE SAME AUGMENTATION  same rotation, but others are different, eg scale and translation
+    KEEP_RATIO: False
