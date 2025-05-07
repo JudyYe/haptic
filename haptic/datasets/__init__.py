@@ -198,3 +198,4 @@ class HAPTICDataModule(pl.LightningDataModule):
             num_workers=self.cfg.GENERAL.NUM_WORKERS,
         )
         return val_dataloader
+

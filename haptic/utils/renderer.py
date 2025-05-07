@@ -1,3 +1,4 @@
+import torch.nn.functional as F
 import os
 if 'PYOPENGL_PLATFORM' not in os.environ:
     os.environ['PYOPENGL_PLATFORM'] = 'egl'
@@ -9,17 +10,54 @@ import cv2
 from yacs.config import CfgNode
 from typing import List, Optional
 
-def cam_crop_to_full(cam_bbox, box_center, box_size, img_size, focal_length=5000.):
-    # Convert cam_bbox to full image
-    img_w, img_h = img_size[:, 0], img_size[:, 1]
-    cx, cy, b = box_center[:, 0], box_center[:, 1], box_size
-    w_2, h_2 = img_w / 2., img_h / 2.
-    bs = b * cam_bbox[:, 0] + 1e-9
+
+def cam_crop_to_full_w_depth(pred_cam, intr, H, W, box_center, box_size, depth, pt3d=False):
+    """
+
+    :param pred_cam: _description_
+    :param intr: _description_
+    :param H: _description_
+    :param W: _description_
+    :param box_center: _description_
+    :param box_size: _description_
+    :param depth: (N, )
+    :param pt3d: _description_, defaults to False
+    :return: _description_
+    """
+    focal_length = intr[..., 0, 0]
+    px = intr[..., 0, 2] - W / 2
+    py = intr[..., 1, 2] - H / 2
+    cx, cy = box_center[:, 0], box_center[:, 1]
+
+    # bs = box_size * pred_cam[..., 0] 
+    tz = depth # 2 * focal_length / bs  # (N, )
+    bs = 2 * focal_length / tz
+    if pt3d:
+        px *= -1
+        py *= -1
+    tx = pred_cam[..., 1] + 2 * (cx - W / 2) / bs - px /  (bs / 2)
+    ty = pred_cam[..., 2] + 2 * (cy - H / 2) / bs - py /  (bs / 2)
+    pred_cam_t = torch.stack([tx, ty, tz], dim=-1)
+    return pred_cam_t
+
+
+def cam_crop_to_full_w_pp(pred_cam, intr, H, W, box_center, box_size, pt3d=False):
+
+    focal_length = intr[..., 0, 0]
+    px = intr[..., 0, 2] - W / 2
+    py = intr[..., 1, 2] - H / 2
+    cx, cy = box_center[:, 0], box_center[:, 1]
+
+    bs = box_size * pred_cam[..., 0] 
     tz = 2 * focal_length / bs
-    tx = (2 * (cx - w_2) / bs) + cam_bbox[:, 1]
-    ty = (2 * (cy - h_2) / bs) + cam_bbox[:, 2]
-    full_cam = torch.stack([tx, ty, tz], dim=-1)
-    return full_cam
+    if pt3d:
+        px *= -1
+        py *= -1
+    tx = pred_cam[..., 1] + 2 * (cx - W / 2) / bs - px /  (bs / 2)
+    ty = pred_cam[..., 2] + 2 * (cy - H / 2) / bs - py /  (bs / 2)
+    pred_cam_t = torch.stack([tx, ty, tz], dim=-1)
+    return pred_cam_t
+
 
 def get_light_poses(n_lights=5, elevation=np.pi / 3, dist=12):
     # get lights in a circle around origin at elevation

@@ -1,10 +1,8 @@
-results/
-examples/
-mayday
-thrid-party/
+!assets/examples/
+assets/mano/
+third-party
 *.log
 _DATA
-demo_out*
 logs/
 tmp/
 .env
@@ -15,4 +13,8 @@ output/
 outputs/
 .vscode/
 *.png
-*.mp4
+# *.mp4
+*.pkl
+
+haptic_training_label/
+hamer_trainig_data

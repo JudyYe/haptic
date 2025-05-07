@@ -1,3 +1,5 @@
+from pytorch3d.renderer import TexturesVertex
+import pickle
 import colorsys
 import os.path as osp
 from glob import glob
@@ -9,12 +11,21 @@ import plotly.graph_objects as go
 import torch
 from matplotlib import cm
 from matplotlib import pyplot as plt
+from PIL import Image
 from pytorch3d.renderer.cameras import PerspectiveCameras, look_at_view_transform
 from pytorch3d.structures import Meshes
 from pytorch3d.vis.plotly_vis import plot_scene
+from torchvision.transforms import ToTensor
 
-from jutils import geom_utils, mesh_utils
+from nnutils import geom_utils, image_utils, mesh_utils
 
+
+decay_mode_world = "exp-3"
+decay_mode_cam = "exp-1.5"
+timeslice = "uni-5"
+device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+
+color_map = cm.get_cmap("jet")
 
 # visualizer
 class Visualizer(object):
@@ -111,7 +122,7 @@ class Visualizer(object):
 
         return fig
 
-    def _get_time_inds(self, F, timeslice):
+    def _get_time_inds(self, F, timeslice="uni-5"):
         if timeslice.startswith("uni"):
             timeslice = int(timeslice.split("-")[1])
             time_inds = np.linspace(0, F - 1, timeslice).astype(int)
@@ -132,7 +143,7 @@ class Visualizer(object):
         cameras: PerspectiveCameras,
         img_size,
         canvas,
-        timeslice="uni-10",
+        timeslice="uni-5",
         alpha=1,
         decay_mode="exp-5",
         cJoints=None,
@@ -177,6 +188,40 @@ class Visualizer(object):
             iJoints2 = iJoints2.detach().cpu().numpy()
             image = self.draw_root(image, iJoints2)
         return image
+
+    def track_in_world(self, wObjs, B, F, H=512, nTw=None, f=10):
+        device = wObjs.device
+
+        verts = wObjs.verts_padded()  # (B*F, V, 3)
+        verts = verts.reshape(B, -1, 3)
+        
+        # lookat
+        cTw, cameras = get_lookat_cameras(verts, f, device=device)  # (B, 4, 4)
+        cTw_exp = cTw[:, None].repeat(1, F, 1, 1).reshape(B*F, 4, 4)
+        nPoints = mesh_utils.apply_transform(verts.reshape(B*F, -1, 3), cTw_exp)  # (BF, V, 3)
+        iPoints = cameras.transform_points_ndc(nPoints)[..., :2]
+        iPoints = (iPoints / 2  + 0.5) * H
+        iPoints = iPoints.reshape(B, F, -1, 2)
+        iPoints = iPoints.detach().cpu().numpy()
+        
+        cObjs = mesh_utils.apply_transform(wObjs, cTw_exp, )
+        canvas = mesh_utils.render_mesh(cObjs, cameras, out_size=(H, H))['image']
+
+        canvas = canvas.reshape(B, F, 3, H, H)
+        canvas_np = (canvas.permute(0, 1, 3, 4, 2).detach().cpu().numpy() / 2 + 0.5) * 255 
+        canvas_np = np.clip(canvas_np, 0, 255).astype(np.uint8)
+
+        trail_list = []
+        for b in range(B):
+            img_list_np = canvas_np[b]
+            trail = vis_trail(img_list_np, iPoints[b], )
+            trail_list.append(trail)
+        
+        trail = np.stack(trail_list)
+        # B, F, 3, H, W -> F, B, 3, H, W
+        trail = torch.FloatTensor(trail).permute(1, 0, 4, 2, 3) / 255 * 2 - 1
+        return trail, (nTw, cameras)
+
 
     def track_in_cam(self, cObjs, B, F, cameras: PerspectiveCameras, img_size, canvas):
         W, H = img_size.split([1, 1], -1)
@@ -291,7 +336,7 @@ class Visualizer(object):
         H=512,
         nTw=None,
         f=10,
-        timeslice="uni-10",
+        timeslice="uni-5",
         alpha=1,
         decay_mode="exp-5",
         wJoints=None,
@@ -401,49 +446,6 @@ class Visualizer(object):
             alpha_t = self._get_decay_alpha(t, T, alpha, decay_mode)
             canvas = blend(images[:, t], canvas, masks[:, t], alpha_t)
         return canvas
-
-    def track_in_world(self, wObjs, B, F, H=512, nTw=None, f=10):
-        device = wObjs.device
-
-        verts = wObjs.verts_padded()  # (B*F, V, 3)
-        verts = verts.reshape(B, -1, 3)
-
-        # lookat
-        cTw, cameras = get_lookat_cameras(verts, f, device=device)  # (B, 4, 4)
-        cTw_exp = cTw[:, None].repeat(1, F, 1, 1).reshape(B * F, 4, 4)
-        nPoints = mesh_utils.apply_transform(
-            verts.reshape(B * F, -1, 3), cTw_exp
-        )  # (BF, V, 3)
-        iPoints = cameras.transform_points_ndc(nPoints)[..., :2]
-        iPoints = (iPoints / 2 + 0.5) * H
-        iPoints = iPoints.reshape(B, F, -1, 2)
-        iPoints = iPoints.detach().cpu().numpy()
-
-        cObjs = mesh_utils.apply_transform(
-            wObjs,
-            cTw_exp,
-        )
-        canvas = mesh_utils.render_mesh(cObjs, cameras, out_size=(H, H))["image"]
-
-        canvas = canvas.reshape(B, F, 3, H, H)
-        canvas_np = (
-            canvas.permute(0, 1, 3, 4, 2).detach().cpu().numpy() / 2 + 0.5
-        ) * 255
-        canvas_np = np.clip(canvas_np, 0, 255).astype(np.uint8)
-
-        trail_list = []
-        for b in range(B):
-            img_list_np = canvas_np[b]
-            trail = vis_trail(
-                img_list_np,
-                iPoints[b],
-            )
-            trail_list.append(trail)
-
-        trail = np.stack(trail_list)
-        # B, F, 3, H, W -> F, B, 3, H, W
-        trail = torch.FloatTensor(trail).permute(1, 0, 4, 2, 3) / 255 * 2 - 1
-        return trail, (nTw, cameras)
 
     def vis_in_cam(self, cObjs, B, F, cameras, img_size, bg=None):
         N = len(cObjs)
@@ -615,7 +617,6 @@ class Visualizer(object):
         return fig
 
 
-color_map = cm.get_cmap("jet")
 
 
 def vis_trail(
@@ -674,8 +675,6 @@ def vis_trail(
 
         frames.append(img_curr)
 
-    # imageio.mimwrite(save_path, frames, quality=8, fps=10)
-    # imageio.imwrite(save_path.replace(".mp4", ".png"), frames[-1])
     return frames
 
 
@@ -693,7 +692,6 @@ def get_lookat_cameras(geom, focal=10, device="cuda:0", dist=0.75, min_max_size=
     cTw = geom_utils.rt_to_homo(R.transpose(-1, -2), T)
     cameras = PerspectiveCameras(focal_length=focal).to(device)
 
-    # cameras = PerspectiveCameras(focal_length=focal, R=R, T=T).to(device)
     return cTw, cameras
 
 
@@ -702,3 +700,363 @@ def blend(fg, bg, mask, r=0.9):
     bg = bg.cpu()
     mask = mask.cpu()
     return mask * (fg * r + (1 - r) * bg) + (1 - mask) * bg
+
+
+def vis_in_world(
+    hand_gt,
+    hand_pred,
+    wrapper,
+    vis_dir,
+    align="1st",
+    cfg=None,
+    root=None,
+    az=60,
+    el=30,
+    flip=False,
+):
+    if flip:
+        faces = torch.flip(wrapper.hand_faces, [-1])
+    else:
+        faces = wrapper.hand_faces
+    hand_pred = Meshes(
+        verts=hand_pred.to(device),
+        faces=faces.repeat(len(hand_pred), 1, 1),
+    )
+    hand_pred.textures = mesh_utils.pad_texture(hand_pred, "blue")
+    if hand_gt is not None:
+        hand_gt = Meshes(
+            verts=hand_gt.to(device),
+            faces=faces.repeat(len(hand_gt), 1, 1),
+        )
+        hand_gt.textures = mesh_utils.pad_texture(hand_gt, "red")
+        scene = mesh_utils.join_scene([hand_gt, hand_pred])
+    else:
+        scene = hand_pred
+    azel = torch.FloatTensor([[az, el]]).to(device) / 180 * np.pi
+    rot = geom_utils.azel_to_rot_v2(azel.repeat(len(hand_pred), 1), True)
+    scene = mesh_utils.apply_transform(scene, rot)
+
+    vis = Visualizer()
+    if cfg.fig_gif:
+        image_list, _ = vis.vis_in_world(
+            scene,
+            1,
+            len(hand_pred),
+            256,
+        )
+        image_utils.save_gif(image_list, vis_dir + "_world", ext='.gif')
+    if cfg.fig_fig:
+        if root is not None:
+            root = mesh_utils.apply_transform(root.to(device), rot)
+        images = vis.traj_in_world(
+            scene,
+            1,
+            len(hand_pred),
+            256,
+            decay_mode=decay_mode_world,
+            timeslice=timeslice,
+            wJoints=root,
+        )
+        image_utils.save_images(images, vis_dir + "_root_world")
+
+
+def vis_in_cam(
+    hand_gt,
+    hand_pred,
+    cameras,
+    img_size,
+    img_list,
+    wrapper,
+    vis_dir,
+    cfg=None,
+    root=None,
+    flip=False,
+):
+    if flip:
+        faces = torch.flip(wrapper.hand_faces, [-1])
+    else:
+        faces = wrapper.hand_faces
+
+    hand_pred = Meshes(
+        verts=hand_pred.to(device),
+        faces=faces.repeat(len(hand_pred), 1, 1),
+    )
+    hand_pred.textures = mesh_utils.pad_texture(hand_pred, "blue")
+    if hand_gt is not None:
+        hand_gt = Meshes(
+            verts=hand_gt.to(device),
+            faces=faces.repeat(len(hand_gt), 1, 1),
+        )
+        hand_gt.textures = mesh_utils.pad_texture(hand_gt, "red")
+        scene = mesh_utils.join_scene([hand_gt, hand_pred])
+    else:
+        scene = hand_pred
+    bg = [
+        ToTensor()(
+            Image.open(osp.join(img_list[t])).resize(
+                (img_size[t, 0].item(), img_size[t, 1].item())
+            )
+        )
+        for t in range(len(img_list))
+    ]
+    bg = torch.stack(bg, 0)  # (N, 3, H, W)
+
+    vis = Visualizer()
+
+    if cfg.fig_gif:
+        image_list = vis.vis_in_cam(
+            scene, 1, len(hand_pred), cameras.to(device), img_size.to(device), bg=bg
+        )
+        # canvas = image_list.transpose(0, 1)
+        image_utils.save_gif(image_list, vis_dir + "_cam", ext='.gif')
+
+    if cfg.fig_fig:
+        images = vis.traj_in_cam(
+            scene,
+            1,
+            len(hand_pred),
+            cameras.to(device),
+            img_size.to(device),
+            bg[-1:],
+            decay_mode=decay_mode_cam,
+            timeslice=timeslice,
+        )
+        # image_utils.save_images(images, vis_dir + "_traj_cam")
+        if root is not None:
+            images = vis.traj_in_cam(
+                scene,
+                1,
+                len(hand_pred),
+                cameras.to(device),
+                img_size.to(device),
+                bg[-1:],
+                decay_mode=decay_mode_cam,
+                timeslice=timeslice,
+                cJoints=root.to(device),
+            )
+            image_utils.save_images(images, vis_dir + "_root_cam")
+
+
+
+def vis_quad(cHands, img, cameras, vis_dir, is_right):
+    """
+    :param cHands: _description_
+    :param img: _description_
+    :param focal:  intr
+    :param vis_dir: _description_
+    """
+    H = img.shape[-2]
+    img = img.reshape(-1, 3, H, H)
+    img = img * torch.tensor([0.229, 0.224, 0.225], device=img.device).reshape(1,3,1,1)
+    img = img + torch.tensor([0.485, 0.456, 0.406], device=img.device).reshape(1,3,1,1)
+    
+    # save_idv
+    # save_idv_images(img, vis_dir, '_input', is_right)
+
+    iHands = mesh_utils.render_mesh(cHands, cameras, out_size=(H,H))
+    image_list = []
+    for i in range(iHands['image'].shape[0]):
+        fg = iHands['image'][i:i+1].cpu()
+        bg = img[i:i+1].cpu()
+        mask = iHands['mask'][i:i+1].cpu()
+        if not is_right[i]:
+            bg = torch.flip(bg, [-1])
+            fg = torch.flip(fg, [-1])
+            mask = torch.flip(mask, [-1])
+        r = 0.9
+        images = mask * (fg * r + bg * (1-r)) + (1 - mask) * bg
+        image_list.append(images)
+        # image_utils.save_images(fg, vis_dir + f"_{i:02d}_overlay", mask=mask, bg=bg, r=0.9)
+    image_utils.save_gif(image_list, f"{vis_dir}_overlay", ext='.gif')
+    
+    f = cameras.focal_length[0, 0]
+    
+    iHands = render_from_azel(cHands, f, torch.LongTensor([90, 0]), out_size=(H,H))
+    save_mp4(iHands['image'], vis_dir, '_side', is_right)
+
+    iHands = render_from_azel(cHands, f, torch.LongTensor([90, 90]), out_size=(H,H))
+    # save_idv_images(iHands['image'], vis_dir, '_side_top', is_right)
+    save_mp4(iHands['image'], vis_dir, '_side_top', is_right)
+
+
+def save_mp4(images, vis_pref,  suf, is_right):
+    for i, img in enumerate(images):
+        if not is_right[i]:
+            images[i] = torch.flip(img, [-1])
+    image_utils.save_gif(images, f"{vis_pref}_{suf}", ext='.gif')
+
+    
+def save_idv_images(images, vis_pref,  suf, is_right):
+    for i, img in enumerate(images):
+        if not is_right[i]:
+            img = torch.flip(img, [-1])
+        image_utils.save_images(img, f"{vis_pref}_{i:02d}_{suf}")
+
+    
+
+def render_from_azel(meshes, f, azel, out_size=(256, 256)):
+    device = meshes.device
+    azel = azel.to(device).reshape(1, 2) / 180 * np.pi  # (1, 2)
+    rot = geom_utils.azel_to_rot_v2(azel.repeat(len(meshes), 1), True)
+    meshes = mesh_utils.apply_transform(meshes, rot)
+
+    cTw, cameras = get_lookat_cameras(meshes, f, device=device)  # (B, 4, 4)
+    
+    cMeshes = mesh_utils.apply_transform(meshes, cTw)
+    iMeshes = mesh_utils.render_mesh(cMeshes, cameras, out_size=out_size)
+    return iMeshes
+
+        
+
+
+def draw_world(pkl_list, wrapper, tail_length=10, min_max_size=0.5, inds=None, az=60, el=30, H=256):
+    
+    verts_list = []
+    joints_list = []
+    color_list = []
+
+    one_verts_list = []
+    one_joints_list = []
+    for pred_file in pkl_list:
+        with open(pred_file, 'rb') as f:
+            pred = pickle.load(f)
+        
+        cVerts = pred['cHands'] # torch in (1, V, 3)
+        cJoints = pred['cJoints']
+        right = pred.get('right', [True])[0]
+        flip = not right
+        
+        one_verts_list.append(cVerts)
+        one_joints_list.append(cJoints)
+    one_verts = torch.cat(one_verts_list, dim=0)  # (T, V, 3)
+    one_joints = torch.cat(one_joints_list, dim=0) # (T, 21, 3)
+    # offset verts by joints[t=0, j=0]
+    print(one_joints[0:1, 0:1].shape, one_verts.shape)
+    one_verts -= one_joints[0:1, 0:1]
+    one_joints = one_joints - one_joints[0:1, 0:1].clone()
+    verts_list.append(one_verts)
+    joints_list.append(one_joints)
+    color_list.append(method2color('ours'))
+    
+    all_verts = torch.stack(verts_list, dim=0).to(device) # (M, T, V, 3)
+    all_joints = torch.stack(joints_list, dim=0).to(device) # (M, T, 21, 3)
+    M, L, V, _3 = all_verts.shape
+    azel = torch.FloatTensor([[az, el]]).to(device) / 180 * np.pi
+    rot = geom_utils.azel_to_rot_v2(azel.repeat(M*L, 1), True).to(device)
+    all_verts = mesh_utils.apply_transform(all_verts.reshape(M*L, V, 3), rot)
+    all_joints = mesh_utils.apply_transform(all_joints.reshape(M*L, 21, 3), rot)
+
+    # get camera
+    all_verts = all_verts.reshape(1, M*L*V, 3) 
+    cTw, cameras = get_lookat_cameras(all_verts, dist=0.6, min_max_size=min_max_size)
+    cAllVerts = mesh_utils.apply_transform(all_verts, cTw)
+    cAllVerts = cAllVerts.reshape(M, L, V, 3)
+
+    video = render_all_from_side(wrapper, cAllVerts, color_list, cameras, flip=flip) 
+
+    all_joints = all_joints.reshape(1, M*L*21, 3)
+    cAllJoints = mesh_utils.apply_transform(all_joints, cTw)
+    cAllJoints = cAllJoints.reshape(M, L, 21, 3)
+    if inds is not None:
+        cAllJoints = cAllJoints[inds]
+
+    video = vis_tracks(cAllJoints[:, :, 0:1], color_list, cameras, video.squeeze(1), tail_length=tail_length)
+    # video = cut_video_to_43(video)
+    video_np = image_utils.save_gif(video[:, None], None)
+    return video_np
+
+
+def render_all_from_side(wrapper, verts_list, color_list, cameras, flip=False, H=256):
+    """
+    :param meshes_list: [verts in shape of (T, V, 3) for different methods]
+    :param color_list: [(3, ) for different methods]
+    """
+    T = len(verts_list[0])
+
+    video = []
+    for t in range(T):
+        scene = []
+        for m in range(len(verts_list)):
+            verts = verts_list[m][t]  # (V, 3)
+            color = color_list[m].reshape(1, 1, 3).repeat(1, verts.shape[0], 1)  # (V, 3)
+            faces = wrapper.hand_faces
+            if flip:
+                faces = torch.flip(faces, [-1])
+            meshes = Meshes(verts[None], faces, TexturesVertex(color)).to(device)
+            scene.append(meshes)
+
+        scene = mesh_utils.join_scene(scene)
+        images = mesh_utils.render_mesh(scene , cameras, out_size=H)
+
+        video.append(images['image'])
+    
+    video = torch.stack(video, dim=0)  # (T, B, C, H, W)
+    return video
+
+
+def vis_tracks(joints_list, color_list, cameras, video, tail_length=10, H=256):
+    """
+    :param joints_list: (M, T, 3)
+    :param color_list: _description_
+    :param cameras: (1, )
+    :param video: (T, C, H, W)
+    """
+    M, T, J, _3 = joints_list.shape
+    nPoints = joints_list.reshape(1, M*T*J, 3)
+    iPoints = cameras.transform_points_ndc(nPoints)[..., :2]
+    iPoints = (iPoints / 2  + 0.5) * H
+    iPoints = iPoints.reshape(M, T, -1, 2).cpu().numpy()
+
+    video = video.permute(0, 2, 3, 1) * 255 # (T, H, W, C)
+    video = video.cpu().numpy().astype(np.uint8)
+
+    for t in range(T):
+        # draw a tail for each frame
+        video[t] = video[t].copy()
+        for m in range(M):
+            color = (color_list[m].cpu().numpy() * 255).astype(int).tolist()
+            color = tuple(color)
+            # draw a circle for each joint
+            for j in range(J):
+                p = iPoints[m, t, j]
+                p = tuple(p.astype(int))
+                cv2.circle(video[t], p, 3, color, -1)
+
+            for f in range(max(0, t-tail_length), t):
+                for j in range(J):
+                    p1 = iPoints[m, f, j]
+                    p2 = iPoints[m, f+1, j]
+                    p1 = tuple(p1.astype(int))
+                    p2 = tuple(p2.astype(int))
+                    cv2.line(video[t], p1, p2, color, 2)
+            
+    video = torch.from_numpy(video).permute(0, 3, 1, 2) / 255
+    return video
+
+
+
+def method2color(method, max_num=10):
+    # use matploblib color wheel
+    plt.style.use('seaborn-v0_8-darkgrid')    
+    colors = plt.cm.tab10(np.linspace(0, 1, max_num))  # (D, 4)
+    colors = colors[:, :3]  # (D, 3)
+    colors[0] = np.array([183,216,254]) / 255
+    colors[3] = np.array([254,216/2,183/2]) / 255
+
+    method_color = {
+        'ours': colors[0],
+        'gt': colors[3],
+        'w2f-gt': colors[4],
+        'w2f-u': colors[6],
+        'zoe': colors[7] * 1.2,
+        'wham': colors[5] * 1.5,
+    }
+    method_color['ours-opt'] = method_color['ours']
+    method_color['ours-big'] = method_color['ours']
+    method_color['w2f-gt-opt'] = method_color['w2f-gt']
+    method_color['hamer_release-teaser'] = method_color['w2f-u']
+    method_color['zoe-opt'] = method_color['zoe']
+    
+    color = method_color[method]  # (3, )
+    return torch.FloatTensor(color).to(device)
+

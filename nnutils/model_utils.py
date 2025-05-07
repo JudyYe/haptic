@@ -48,3 +48,18 @@ def save_configs(model_cfg, dataset_cfg, rootdir):
     OmegaConf.save(config=model_cfg, f=os.path.join(rootdir, "model_config.yaml"))
     with open(os.path.join(rootdir, "dataset_config.yaml"), "w") as f:
         f.write(dataset_cfg.dump())
+
+
+
+def to_cuda(data, device='cuda'):
+    if hasattr(data, 'to'):
+        return data.to(device)
+    if isinstance(data, list):
+        for i, d in enumerate(data):
+            data[i] = to_cuda(d, device)
+    elif isinstance(data, dict):
+        for k, v in data.items():
+            data[k] = to_cuda(v, device)
+    elif isinstance(data, tuple):
+        data = tuple(to_cuda(d, device) for d in data)
+    return data

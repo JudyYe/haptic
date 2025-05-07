@@ -1,8 +1,24 @@
-python -m train -m \
-    expname=dev/\${DATASETS.name}_\${TRAIN.STAGE}X\${TRAIN.IMAGE_BATCH_SIZE}_share\${MODEL.SHARE_BACKBONE} \
-    data=ego_mix \
-    MODEL.SHARE_BACKBONE=True  \
-    TRAIN.IMAGE_BATCH_SIZE=8 \
-    TRAIN.BATCH_SIZE=2 
+# TODO
+# [x] change visualization to sync video
 
-    trainer=ddp  +engine=mpi engine.bid=50 engine.ngpu=2
+# [x] change dir
+# [x] download model
+# [x] download demo data 
+# install and environment
+
+# evaluation code
+
+# [x] download training data
+
+# readme
+
+python -m train -m \
+    expname=reproduce/\${DATASETS.name} \
+    data=ego_mix \
+    trainer=ddp  \
+
+
+python -m demo -m    \
+   expname=release/mix_all \
+   data=custom \
+

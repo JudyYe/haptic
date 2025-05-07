@@ -1,0 +1,60 @@
+defaults:
+  - _self_
+  - data: custom
+  - paths: default.yaml
+
+hydra:
+  run:
+    dir: ${exp_dir}/hyra
+  sweep:
+    dir: ${exp_dir}/hydra
+    subdir: ID${hydra.job.id}
+
+exp_dir: ${paths.log_dir}/${expname}
+expname: dev/tmp
+
+eval_folder: demo
+opt_folder: ${eval_folder}_opt
+box_mode: box_size_same
+
+
+# EVAL
+num: -1 # 100  # number of sequences
+ckpt: ${exp_dir}/checkpoints/last.ckpt
+
+dry: false
+eval_T: -1 
+depth_mode: pred
+
+
+fig_fig: true
+fig_gif: true
+# fig_inp: true
+fig_crop: true
+
+save_crop: true
+
+
+
+opt:
+  loss:
+    kp2d: 10. # 10.
+    vel: 0
+    acc: 1. # 10
+    delta: 10 
+    acc_kp2d: 1.
+  lr: 1e-3
+  iters: 1000
+
+  params: 
+    pose: True
+    wTh_6d: True
+    wTh_tsl: True
+
+    cTw_6d: False
+    cTw_tsl: False
+    intr: False
+    kp2d: False
+    image: False
+    hamer_mask: False
+    betas: False

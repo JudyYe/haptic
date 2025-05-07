@@ -1,0 +1,26 @@
+gdown
+numpy==1.26
+opencv-python
+pyrender
+pytorch-lightning
+scikit-image
+smplx==0.1.28
+yacs
+detectron2 @ git+https://github.com/facebookresearch/detectron2
+chumpy @ git+https://github.com/mattloper/chumpy
+mmcv==1.3.9
+timm
+einops
+xtcocotools
+pandas
+hydra-core
+manopth @ git+https://github.com/hassony2/manopth.git
+
+webdataset
+hydra-submitit-launcher
+hydra-colorlog
+pyrootutils
+rich
+wandb
+plotly
+xformers==0.0.23
