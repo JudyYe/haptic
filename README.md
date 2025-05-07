@@ -1,17 +1,24 @@
 # Predicting 4D Hand Trajectory from Monocular Videos
 Yufei Ye, Yao Feng, Omid Taheri, Haiwen Feng, Shubham Tulsiani*, Michael J. Black* (*Equal Contribution)
 
+[[project page]](https://judyye.github.io/haptic-www/)
+
 TLDR: Existing methods produce convincing reprojection but their 4D trajectories are not plausible. HaPTIC reconstructs Hand Pose and 4D hand Trajectory in consistent global Coordinate while maintaining strong 2D alignment.
 
 
+https://github.com/user-attachments/assets/72e85d9d-ef02-4f3d-96bf-c23e9cc4a0de
+
+
+
+
 ## Installation 
-- Install environment and download our pretrained model.
+- Install the environment and download our pretrained model.
     ```
     conda create -n haptic python=3.10 -y
     conda activate haptic
     bash scripts/one_click.sh
     ```
-- Addtionally, due to license restriction, you need to download the MANO model from the official [MANO website](https://mano.is.tue.mpg.de/). Put the files under
+- Additionally, due to license restrictions, you need to download the MANO model from the official [MANO website](https://mano.is.tue.mpg.de/). Put the files under
     ```
     assets/
         mano/
@@ -25,7 +32,7 @@ TLDR: Existing methods produce convincing reprojection but their 4D trajectories
 
 
 ## Demo
-Given a list of video under `data.video_dir`, predict hand trajectories:
+Given a list of videos under `data.video_dir`, predict hand trajectories:
 ```
 python -m demo -m  expname=release/mix_all \
     data.video_dir=assets/examples \
@@ -48,7 +55,7 @@ Global overlay | Global sideview | Local overlay | Local sideview |
 bash dl_training_data.sh
 ```
 
-- Download raw RGB images from each datasets official website individually. Specify their root directory in `haptic/configs/datasets_tar.yaml:${DATASET}.img_dir`
+- Download raw RGB images from each dataset's official website individually. Specify their root directory in `haptic/configs/datasets_tar.yaml:${DATASET}.img_dir`
     - HO2O
     - DexYCB
     - ARCTIC
