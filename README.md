@@ -5,8 +5,6 @@ TLDR: Existing methods produce convincing reprojection but their 4D trajectories
 
 
 ## Installation 
-- Install pytorch 
-
 - Install environment and download our pretrained model.
     ```
     conda create -n haptic python=3.10 -y
