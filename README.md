@@ -1,6 +1,7 @@
 # Predicting 4D Hand Trajectory from Monocular Videos
 Yufei Ye, Yao Feng, Omid Taheri, Haiwen Feng, Shubham Tulsiani*, Michael J. Black* (*Equal Contribution)
 
+TLDR: Existing methods produce convincing reprojection but their 4D trajectories are not plausible. HaPTIC reconstructs Hand Pose and 4D hand Trajectory in consistent global Coordinate while maintaining strong 2D alignment.
 
 
 ## Installation 
