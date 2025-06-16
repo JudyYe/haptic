@@ -1,6 +1,5 @@
 !assets/examples/
 assets/mano/
-third-party
 *.log
 _DATA
 logs/
