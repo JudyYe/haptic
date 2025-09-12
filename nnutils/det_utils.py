@@ -6,6 +6,7 @@ from glob import glob
 from pathlib import Path
 
 import cv2
+import imageio
 import numpy as np
 import torch
 import torch.nn as nn
@@ -51,17 +52,15 @@ def load_all_imgs(seq_dir, out_folder):
             return [], []
         mp4_path = mp4_path[0]
         os.makedirs(seq_dir, exist_ok=True)
-        # use opencv to decode video
-        cap = cv2.VideoCapture(mp4_path)
+        reader = imageio.get_reader(mp4_path)
         frame_count = 0
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
+        for frame in reader:
+            # Convert RGB to BGR for saving with cv2
+            frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             img_path = os.path.join(seq_dir, f'{frame_count:05d}.jpg')
-            cv2.imwrite(img_path, frame)
-            frame_count += 1            
-        cap.release()
+            cv2.imwrite(img_path, frame_bgr)
+            frame_count += 1
+        reader.close()
         img_paths = sorted([img for end in ['*.jpg', '*.png'] for img in Path(seq_dir).glob(end)])
         print(f"decoded {len(img_paths)} images from {mp4_path} to {seq_dir}")
 
