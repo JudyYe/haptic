@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
 import cv2
-import imageio.v3 as iio
 import rerun as rr
 import av
 from pathlib import Path
@@ -9,6 +8,7 @@ import argparse
 import pickle
 import glob
 from tqdm import tqdm
+import imageio.v3 as iio
 
 
 def read_depth_video(video_path):
@@ -26,7 +26,6 @@ def read_depth_video(video_path):
 
     frames = np.stack([frame for frame in loaded_frames])
     return frames
-
 
 def load_intrinsics(intrinsics_path):
     intrinsics = np.loadtxt(intrinsics_path)
@@ -77,56 +76,62 @@ def depth_to_pointcloud(depth, intrinsics):
     return points, valid_mask
 
 
-def load_hand_poses(hand_pose_path):
-    hand_poses = np.load(hand_pose_path)
+def load_lerobot_videos(dset_name, video_index):
+    """Load RGB and depth videos from lerobot dataset."""
+    cache_dir = Path.home() / ".cache/huggingface/lerobot" / dset_name
+    
+    # Find RGB video
+    rgb_pattern = str(cache_dir / f"videos/chunk*/observation.images.cam_azure_kinect.color/episode_{video_index:06d}.mp4")
+    rgb_files = glob.glob(rgb_pattern)
+    if not rgb_files:
+        raise FileNotFoundError(f"No RGB video found for pattern: {rgb_pattern}")
+    rgb_path = rgb_files[0]
+    
+    # Find depth video  
+    depth_pattern = str(cache_dir / f"videos/chunk*/observation.images.cam_azure_kinect.transformed_depth/episode_{video_index:06d}.mkv")
+    depth_files = glob.glob(depth_pattern)
+    if not depth_files:
+        raise FileNotFoundError(f"No depth video found for pattern: {depth_pattern}")
+    depth_path = depth_files[0]
+    
+    return rgb_path, depth_path
+
+
+def load_haptic_hand_poses(haptic_dir, dset_name, video_index):
+    """Load haptic hand poses for specific dataset and video index."""
+    haptic_dir = Path(haptic_dir)
+    npy_path = haptic_dir / dset_name / "haptic_output" / f"episode_{video_index:06d}.mp4.npy"
+    
+    if not npy_path.exists():
+        raise FileNotFoundError(f"Haptic hand pose file not found: {npy_path}")
+    
+    # Load the scaled hand poses (scaling already done in demo_lerobot.py)
+    hand_poses = np.load(npy_path)
     return hand_poses
 
 
-def load_haptic_hand_poses(haptic_dir):
-    haptic_dir = Path(haptic_dir)
-    pkl_files = sorted(glob.glob(str(haptic_dir / "*.pkl")))
-    
-    hand_poses = []
-    intrinsics_list = []
-    
-    for pkl_file in pkl_files:
-        with open(pkl_file, 'rb') as f:
-            data = pickle.load(f)
-            
-            wHands = data['wHands'].detach().cpu().numpy().squeeze()
-            intr = data['intr'].detach().cpu().numpy().squeeze()
-            
-            hand_poses.append(wHands)
-            intrinsics_list.append(intr)
-    
-    return np.array(hand_poses), np.array(intrinsics_list)
+def visualize_lerobot_sequence(dset_name, video_index, intrinsics_path, haptic_pose_dir):
+    rr.init("LeRobot_Visualization", spawn=True)
 
-
-def visualize_rgbd_sequence(rgb_video_path, depth_video_path, intrinsics_path, hand_pose_path=None, haptic_pose_dir=None):
-    rr.init("RGBD_Visualization", spawn=True)
-    #rr.serve(open_browser=False, web_port=9090, ws_port=9877)
-    
     # Load camera intrinsics
     intrinsics = load_intrinsics(intrinsics_path)
-    # Read RGB and depth videos
+    
+    # Load RGB and depth videos from lerobot dataset
+    rgb_video_path, depth_video_path = load_lerobot_videos(dset_name, video_index)
     rgb_frames = iio.imread(rgb_video_path)
     depth_frames = read_depth_video(depth_video_path)
 
-    hand_poses = load_hand_poses(hand_pose_path)
-    haptic_poses, haptic_intrinsics = load_haptic_hand_poses(haptic_pose_dir)
+    # Load haptic hand poses (scaling already done in demo_lerobot.py)
+    haptic_poses = load_haptic_hand_poses(haptic_pose_dir, dset_name, video_index)
 
     # Ensure all data have the same number of frames
-    assert len(rgb_frames) == len(depth_frames)
-    assert len(rgb_frames) == len(hand_poses)
-    assert len(rgb_frames) == len(haptic_poses)
+    assert len(rgb_frames) == len(depth_frames), f"RGB frames: {len(rgb_frames)}, Depth frames: {len(depth_frames)}"
+    assert len(rgb_frames) == len(haptic_poses), f"RGB frames: {len(rgb_frames)}, Haptic poses: {len(haptic_poses)}"
 
     # Set up camera pinhole model for visualization
     fx, fy = intrinsics[0, 0], intrinsics[1, 1]
     cx, cy = intrinsics[0, 2], intrinsics[1, 2]
     h, w = rgb_frames[0].shape[:2]
-
-    haptic_fx = haptic_intrinsics[0, 0, 0]
-    scale_factor = fx / haptic_fx
     
     # Process each frame
     for frame_idx in tqdm(range(len(rgb_frames))):
@@ -143,81 +148,45 @@ def visualize_rgbd_sequence(rgb_video_path, depth_video_path, intrinsics_path, h
         # Log 3D point cloud
         rr.log("world/pointcloud", rr.Points3D(points_3d, colors=colors))
         
-        hand_pose_frame = hand_poses[frame_idx]
-        # Log wilor hand in red
-        rr.log("world/hand/wilor", rr.Points3D(hand_pose_frame, colors=[1.0, 0.0, 0.0]))  # Red for wilor
-
-        # Project wilor hand poses to 2D and overlay on RGB image
-        wilor_projected = project_3d_to_2d(hand_pose_frame, intrinsics)
-
-        # Filter points that are within image bounds and have positive depth
-        h, w = rgb_frame.shape[:2]
-        wilor_valid_mask = (
-            (hand_pose_frame[:, 2] > 0.1) &  # Positive depth
-            (wilor_projected[:, 0] >= 0) & (wilor_projected[:, 0] < w) &  # Within width
-            (wilor_projected[:, 1] >= 0) & (wilor_projected[:, 1] < h)    # Within height
-        )
-
-        wilor_valid_projected = wilor_projected[wilor_valid_mask]
-        
         haptic_pose_frame = haptic_poses[frame_idx]
-        haptic_intrinsics_frame = haptic_intrinsics[frame_idx]
 
-        # Scale only Z-coordinate to match RGB camera coordinate system
-        haptic_fx = haptic_intrinsics_frame[0, 0]
-        rgb_fx = intrinsics[0, 0]
-        z_scale_factor = rgb_fx / haptic_fx
+        # Log haptic hand poses in blue (no scaling needed - already done in demo_lerobot.py)
+        rr.log("world/hand/haptic", rr.Points3D(haptic_pose_frame, colors=[0.0, 0.0, 1.0]))
 
-        # Apply Z-only scaling to haptic hand poses for 3D visualization
-        z_scaled_haptic_pose = haptic_pose_frame.copy()
-        z_scaled_haptic_pose[:, 2] *= z_scale_factor
-
-        # Log Z-scaled haptic hand in blue
-        rr.log("world/hand/haptic", rr.Points3D(z_scaled_haptic_pose, colors=[0.0, 0.0, 1.0]))  # Blue for haptic
-
-        # Project haptic hand poses to 2D using haptic intrinsics
-        haptic_projected = project_3d_to_2d(haptic_pose_frame, haptic_intrinsics_frame)
-
+        # Project haptic hand poses to 2D using RGB camera intrinsics
+        haptic_projected = project_3d_to_2d(haptic_pose_frame, intrinsics)
+        
         # Filter points that are within image bounds and have positive depth
-        h, w = rgb_frame.shape[:2]
         haptic_valid_mask = (
             (haptic_pose_frame[:, 2] > 0.1) &  # Positive depth
             (haptic_projected[:, 0] >= 0) & (haptic_projected[:, 0] < w) &  # Within width
             (haptic_projected[:, 1] >= 0) & (haptic_projected[:, 1] < h)    # Within height
         )
-
         haptic_valid_projected = haptic_projected[haptic_valid_mask]
             
-        # Create RGB image with both hand pose projections overlaid
+        # Create RGB image with hand pose projections overlaid
         rgb_with_overlay = rgb_frame.copy()
-            
-        for point in wilor_valid_projected:
-            x, y = int(point[0]), int(point[1])
-            cv2.circle(rgb_with_overlay, (x, y), 2, (255, 0, 0), -1)  # Red circles
-            
         for point in haptic_valid_projected:
             x, y = int(point[0]), int(point[1])
             cv2.circle(rgb_with_overlay, (x, y), 2, (0, 0, 255), -1)  # Blue circles
-            
-        # Log the RGB image with both hand pose projections
         rr.log("world/camera/rgb_with_overlay", rr.Image(rgb_with_overlay))
         
     print("Visualization complete! Check the Rerun viewer.")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Visualize RGB-D video sequence with Rerun")
-    parser.add_argument("--vid_name", default="0910_0", help="Dataset name")
+    parser = argparse.ArgumentParser(
+        description="Visualize lerobot dataset with haptic hand poses in Rerun",
+        epilog="Example: python rerun_lerobot.py --dset_name sriramsk/mug_on_platform_20250910_human/ --video_index 0 --intrinsics assets/examples/0910_0/intrinsics.txt --haptic_pose_dir /data/sriram/lerobot_extradata"
+    )
+    parser.add_argument("--dset_name", default="sriramsk/mug_on_platform_20250910_human/", help="Dataset name")
+    parser.add_argument("--video_index", type=int, default=0, help="Video index")
+    parser.add_argument("--intrinsics", default="assets/examples/0910_0/intrinsics.txt", help="Path to camera intrinsics file")
+    parser.add_argument("--haptic_pose_dir", default="/data/sriram/lerobot_extradata", help="Path to haptic hand pose directory")
 
     args = parser.parse_args()
     
-    # Validate paths
-    rgb_path = Path(f"assets/examples/{args.vid_name}/video.mp4")
-    depth_path = Path(f"assets/examples/{args.vid_name}/depth.mkv")
-    intrinsics_path = Path(f"assets/examples/{args.vid_name}/intrinsics.txt")
-    wilor_hand_pose_path = Path(f"assets/examples/{args.vid_name}/wilor_hand_pose.npy")
-    haptic_hand_pose_path = Path(f"output/release/mix_all/demo/{args.vid_name}_right/")
-    visualize_rgbd_sequence(rgb_path, depth_path, intrinsics_path, wilor_hand_pose_path, haptic_hand_pose_path)
+    visualize_lerobot_sequence(args.dset_name, args.video_index, args.intrinsics, args.haptic_pose_dir)
 
 
 if __name__ == "__main__":
