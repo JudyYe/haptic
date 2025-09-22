@@ -24,3 +24,5 @@ rich
 wandb
 plotly
 xformers==0.0.23
+rerun-sdk
+av

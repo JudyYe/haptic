@@ -1,0 +1,3 @@
+name: "custom"
+video_dir: "assets/examples"
+video_list: "assets/examples/video_list.yaml"

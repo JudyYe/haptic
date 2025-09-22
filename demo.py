@@ -36,6 +36,7 @@ device = "cuda:0"
 def load_haptic_model(ckpt_path, device, load_weight=True):
     cfg_path = ckpt_path.split("/checkpoints")[0] + "/config.yaml"
     cfg = OmegaConf.load(cfg_path)
+    cfg.MANO.DATA_DIR = "assets/"
 
     if "PRETRAINED_WEIGHTS" in cfg.MODEL.BACKBONE:
         cfg.MODEL.BACKBONE.pop("PRETRAINED_WEIGHTS")
@@ -58,7 +59,7 @@ def demo(cfg):
 
 @torch.no_grad()
 def infer_seq(cfg):
-    hand_wrapper = ManopthWrapper().to(device)
+    hand_wrapper = ManopthWrapper(cfg.paths.mano_dir).to(device)
     model = load_haptic_model(cfg.ckpt, device)
     seq_list, _ = get_seq_list(cfg)
 
@@ -147,7 +148,7 @@ def infer_seq(cfg):
 
 @torch.no_grad()
 def vis_seq(cfg):
-    wrapper = ManopthWrapper().to(device)
+    wrapper = ManopthWrapper(cfg.paths.mano_dir).to(device)
     print("todo")
 
     # wrapper = ManopthWrapper(cfg.mano_dir).to(device)
